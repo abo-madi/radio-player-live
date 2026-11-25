@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120e0a">
+<title>راديو مباشر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;900&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#120e0a;
+  --panel:#1c1611;
+  --line:#3a2e22;
+  --gold:#d9a84e;
+  --gold-soft:#8f6d33;
+  --ivory:#f1e7d0;
+  --muted:#9d8f78;
+  --danger:#e07a5f;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--ivory);
+  font-family:'Tajawal',sans-serif;
+  display:flex;justify-content:center;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(60% 45% at 50% 38%, rgba(217,168,78,.13), transparent 70%);
+  transition:opacity .8s;opacity:.35;
+}
+body.on::before{opacity:1}
+main{
+  width:100%;max-width:460px;min-height:100%;
+  padding:max(22px,env(safe-area-inset-top)) 22px max(24px,env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;align-items:center;gap:20px;
+  position:relative;
+}
+.top{width:100%;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:14px}
+.live{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--muted)}
+.live i{width:9px;height:9px;border-radius:50%;background:var(--line);transition:.3s}
+body.on .live{color:var(--ivory)}
+body.on .live i{background:var(--gold);box-shadow:0 0 12px var(--gold)}
+body.loading .live i{background:var(--gold-soft);animation:blink 1s infinite}
+body.error .live i{background:var(--danger)}
+@keyframes blink{50%{opacity:.25}}
+
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:8px}
+
+.stage{position:relative;width:min(86vw,380px);aspect-ratio:1;margin-top:4px}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+.play{
+  position:absolute;top:50%;left:50%;
+  width:38%;aspect-ratio:1;transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:var(--gold);color:#1a1209;
+  display:grid;place-items:center;
+  box-shadow:0 0 0 7px var(--bg),0 0 0 8px var(--gold-soft),0 14px 40px rgba(0,0,0,.55);
+  transition:transform .18s, background .3s;
+}
+.play:active{transform:translate(-50%,-50%) scale(.95)}
+.play svg{width:42%;height:42%;fill:currentColor}
+.play .i-pause,.play .i-spin{display:none}
+body.on .play .i-play{display:none}
+body.on .play .i-pause{display:block}
+body.loading .play .i-play,body.loading .play .i-pause{display:none}
+body.loading .play .i-spin{display:block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.info{text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center}
+h1{font-family:'Cairo',sans-serif;font-weight:900;font-size:clamp(30px,9vw,40px);line-height:1.2;letter-spacing:0}
+.status{color:var(--muted);font-size:15px;min-height:22px}
+body.error .status{color:var(--danger)}
+.edit{font-size:13px;color:var(--gold-soft);padding:4px 10px;border-radius:8px}
+.edit:hover{color:var(--gold)}
+
+.dial{
+  direction:ltr;width:100%;height:58px;position:relative;overflow:hidden;
+  border-block:1px solid var(--line);
+  mask-image:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent);
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent);
+}
+.strip{position:absolute;top:0;left:0;height:100%;display:flex;animation:drift 90s linear infinite;animation-play-state:paused}
+body.on .strip{animation-play-state:running}
+@keyframes drift{to{transform:translateX(-50%)}}
+.tick{flex:none;width:12px;position:relative;height:100%}
+.tick::before{content:"";position:absolute;bottom:0;left:50%;width:1px;height:12px;background:var(--gold-soft)}
+.tick.m::before{height:22px;background:var(--gold)}
+.tick b{position:absolute;top:8px;left:50%;transform:translateX(-50%);font:500 11px 'Tajawal';color:var(--muted)}
+.needle{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:var(--ivory);box-shadow:0 0 10px var(--gold)}
+
+.controls{width:100%;display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px 16px}
+.icon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:var(--ivory);flex:none}
+.icon:hover{background:#2a2118}
+.icon svg{width:22px;height:22px;fill:currentColor}
+.icon .i-off{display:none}
+.muted .icon .i-on{display:none}
+.muted .icon .i-off{display:block}
+input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;background:linear-gradient(to left,var(--gold) var(--v,80%),var(--line) var(--v,80%));direction:rtl;outline-offset:6px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--ivory);border:3px solid var(--gold)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--ivory);border:3px solid var(--gold)}
+.sleep{display:flex;align-items:center;gap:6px;font-size:14px;padding:8px 12px;border-radius:10px;color:var(--muted);flex:none;white-space:nowrap}
+.sleep:hover{background:#2a2118}
+.sleep.set{color:var(--gold)}
+.sleep svg{width:18px;height:18px;fill:currentColor}
+
+.foot{margin-top:auto;color:var(--muted);font-size:13px;display:flex;gap:6px}
+.foot span{color:var(--ivory);font-variant-numeric:tabular-nums}
+
+@media (prefers-reduced-motion:reduce){.strip{animation:none}body.loading .play .i-spin{animation-duration:2.5s}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div class="live"><i></i><span id="liveTxt">متوقف</span></div>
+    <span id="clock"></span>
+  </div>
+
+  <div class="stage">
+    <canvas id="viz" aria-hidden="true"></canvas>
+    <button class="play" id="play" aria-label="تشغيل">
+      <svg class="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" transform="translate(24 0) scale(-1 1)"/></svg>
+      <svg class="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>
+      <svg class="i-spin" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10h-3a7 7 0 1 1-7-7V2z"/></svg>
+    </button>
+  </div>
+
+  <div class="info">
+    <h1 id="name">البث المباشر</h1>
+    <div class="status" id="status" role="status" aria-live="polite">اضغط تشغيل للاستماع</div>
+    <button class="edit" id="edit">تغيير الاسم</button>
+  </div>
+
+  <div class="dial" aria-hidden="true"><div class="strip" id="strip"></div><div class="needle"></div></div>
+
+  <div class="controls" id="controls">
+    <button class="icon" id="mute" aria-label="كتم الصوت">
+      <svg class="i-on" viewBox="0 0 24 24"><path d="M3 9.5v5h4l5 4v-13l-5 4H3zm13.5 2.5a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+      <svg class="i-off" viewBox="0 0 24 24"><path d="M3 9.5v5h4l5 4v-13l-5 4H3zm13.6 2.5 2.4-2.4-1.4-1.4-2.4 2.4-2.4-2.4-1.4 1.4 2.4 2.4-2.4 2.4 1.4 1.4 2.4-2.4 2.4 2.4 1.4-1.4-2.4-2.4z"/></svg>
+    </button>
+    <input type="range" id="vol" min="0" max="100" value="80" aria-label="مستوى الصوت">
+    <button class="sleep" id="sleep" aria-label="مؤقت النوم">
+      <svg viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
+      <span id="sleepTxt">مؤقت النوم</span>
+    </button>
+  </div>
+
+  <div class="foot">مدة الاستماع <span id="elapsed">00:00</span></div>
+</main>
+
+<script>
+(() => {
+  const STREAM = 'https://stream.radiojar.com/8s5u5tpdtwzuv';
+  const $ = id => document.getElementById(id);
+  const body = document.body;
+
+  /* ---------- state ---------- */
+  let audio = null, state = 'idle', corsMode = true, everPlayed = false, retries = 0, retryTimer = null;
+  let ctx = null, analyser = null, freq = null;
+  let elapsed = 0, elapsedTimer = null;
+  let sleepMins = 0, sleepAt = 0, sleepTimer = null;
+
+  const store = {
+    get(k, d){ try { const v = localStorage.getItem('radio:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v){ try { localStorage.setItem('radio:' + k, JSON.stringify(v)); } catch {} }
+  };
+
+  /* ---------- UI helpers ---------- */
+  const texts = {
+    idle: ['متوقف', 'اضغط تشغيل للاستماع'],
+    loading: ['جارٍ الاتصال', 'جارٍ الاتصال بالبث…'],
+    playing: ['مباشر', 'يعمل الآن'],
+    error: ['انقطع', 'تعذّر الاتصال بالبث. تحقق من الإنترنت ثم اضغط تشغيل.']
+  };
+  function setState(s, extra){
+    state = s;
+    body.classList.toggle('on', s === 'playing');
+    body.classList.toggle('loading', s === 'loading');
+    body.classList.toggle('error', s === 'error');
+    $('liveTxt').textContent = texts[s][0];
+    $('status').textContent = extra || texts[s][1];
+    $('play').setAttribute('aria-label', s === 'playing' || s === 'loading' ? 'إيقاف' : 'تشغيل');
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = s === 'playing' ? 'playing' : 'paused';
+    if (s === 'playing') startElapsed(); else stopElapsed();
+  }
+  const fmt = s => { const m = Math.floor(s / 60), r = s % 60; return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0'); };
+  function startElapsed(){ if (elapsedTimer) return; elapsedTimer = setInterval(() => { elapsed++; $('elapsed').textContent = fmt(elapsed); }, 1000); }
+  function stopElapsed(){ clearInterval(elapsedTimer); elapsedTimer = null; }
+
+  /* ---------- audio ---------- */
+  function build(cors){
+    teardown();
+    corsMode = cors;
+    audio = new Audio();
+    audio.preload = 'none';
+    if (cors) audio.crossOrigin = 'anonymous';
+    audio.volume = $('mute').parentElement.classList.contains('muted') ? 0 : $('vol').value / 100;
+    audio.addEventListener('playing', () => { everPlayed = true; retries = 0; setState('playing'); });
+    audio.addEventListener('waiting', () => { if (state === 'playing') setState('loading', 'جارٍ تحميل البث…'); });
+    audio.addEventListener('stalled', () => { if (state === 'playing') setState('loading', 'ضعف في الاتصال…'); });
+    audio.addEventListener('error', onError);
+    if (cors){
+      try {
+        ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+        const src = ctx.createMediaElementSource(audio);
+        analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = .8;
+        src.connect(analyser); analyser.connect(ctx.destination);
+        freq = new Uint8Array(analyser.frequencyBinCount);
+      } catch { analyser = null; }
+    }
+  }
+  function teardown(){
+    if (!audio) return;
+    audio.removeEventListener('error', onError);
+    audio.pause(); audio.removeAttribute('src'); audio.load();
+    audio = null; analyser = null;
+  }
+  function onError(){
+    if (state === 'idle') return;
+    // The server may not allow CORS: retry once in plain mode (no real spectrum, simulated instead).
+    if (corsMode && !everPlayed){ build(false); start(false); return; }
+    if (retries < 3){
+      retries++;
+      setState('loading', `انقطع البث، إعادة المحاولة (${retries}/3)…`);
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => start(true), 1800 * retries);
+    } else {
+      teardown(); setState('error');
+    }
+  }
+  function start(bust){
+    if (!audio) build(corsMode);
+    if (ctx && ctx.state === 'suspended') ctx.resume();
+    setState('loading');
+    audio.src = STREAM + (bust ? '?t=' + Date.now() : '');
+    const p = audio.play();
+    if (p && p.catch) p.catch(e => { if (e.name !== 'AbortError') onError(); });
+  }
+  function stop(){
+    clearTimeout(retryTimer); retries = 0;
+    teardown(); setState('idle');
+  }
+  function toggle(){ (state === 'idle' || state === 'error') ? (everPlayed = false, build(true), start(false)) : stop(); }
+
+  $('play').addEventListener('click', toggle);
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !/INPUT|BUTTON/.test(document.activeElement.tagName)){ e.preventDefault(); toggle(); }
+  });
+  window.addEventListener('online', () => { if (state === 'error') toggle(); });
+
+  /* ---------- volume ---------- */
+  const vol = $('vol'), controls = $('controls');
+  vol.value = store.get('vol', 80);
+  function applyVol(){
+    vol.style.setProperty('--v', vol.value + '%');
+    const muted = controls.classList.contains('muted');
+    if (audio) audio.volume = muted ? 0 : vol.value / 100;
+  }
+  vol.addEventListener('input', () => {
+    if (controls.classList.contains('muted') && vol.value > 0) controls.classList.remove('muted');
+    store.set('vol', +vol.value); applyVol();
+  });
+  $('mute').addEventListener('click', () => { controls.classList.toggle('muted'); applyVol(); });
+  applyVol();
+
+  /* ---------- station name ---------- */
+  const nameEl = $('name');
+  nameEl.textContent = store.get('name', 'البث المباشر');
+  function syncTitle(){
+    document.title = nameEl.textContent + ' | راديو';
+    if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: nameEl.textContent, artist: 'بث مباشر' });
+  }
+  $('edit').addEventListener('click', () => {
+    const v = prompt('اسم المحطة', nameEl.textContent);
+    if (v && v.trim()){ nameEl.textContent = v.trim().slice(0, 40); store.set('name', nameEl.textContent); syncTitle(); }
+  });
+  syncTitle();
+  if ('mediaSession' in navigator){
+    navigator.mediaSession.setActionHandler('play', () => { if (state !== 'playing') toggle(); });
+    navigator.mediaSession.setActionHandler('pause', () => { if (state !== 'idle') stop(); });
+  }
+
+  /* ---------- sleep timer ---------- */
+  const steps = [0, 15, 30, 60];
+  $('sleep').addEventListener('click', () => {
+    sleepMins = steps[(steps.indexOf(sleepMins) + 1) % steps.length];
+    clearInterval(sleepTimer);
+    if (!sleepMins){ $('sleep').classList.remove('set'); $('sleepTxt').textContent = 'مؤقت النوم'; return; }
+    sleepAt = Date.now() + sleepMins * 60000;
+    $('sleep').classList.add('set');
+    const tick = () => {
+      const left = Math.max(0, Math.round((sleepAt - Date.now()) / 1000));
+      $('sleepTxt').textContent = fmt(left);
+      if (left === 0){
+        clearInterval(sleepTimer); sleepMins = 0;
+        $('sleep').classList.remove('set'); $('sleepTxt').textContent = 'مؤقت النوم';
+        if (state !== 'idle') stop();
+      }
+    };
+    tick(); sleepTimer = setInterval(tick, 1000);
+  });
+
+  /* ---------- clock ---------- */
+  const clock = () => { $('clock').textContent = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }); };
+  clock(); setInterval(clock, 15000);
+
+  /* ---------- tuning dial ---------- */
+  (() => {
+    const strip = $('strip');
+    let html = '';
+    for (let rep = 0; rep < 2; rep++)
+      for (let f = 88; f < 108; f++)
+        for (let i = 0; i < 5; i++){
+          const major = i === 0;
+          html += `<div class="tick${major ? ' m' : ''}">${major ? `<b>${f}</b>` : ''}</div>`;
+        }
+    strip.innerHTML = html;
+  })();
+
+  /* ---------- ring visualizer ---------- */
+  const cv = $('viz'), g = cv.getContext('2d');
+  const N = 84, levels = new Array(N).fill(0), seeds = Array.from({ length: N }, () => Math.random() * 6.28);
+  let W = 0, DPR = 1;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const r = cv.getBoundingClientRect(); W = r.width;
+    cv.width = r.width * DPR; cv.height = r.width * DPR;
+  }
+  window.addEventListener('resize', resize); resize();
+
+  function frame(t){
+    t /= 1000;
+    const playing = state === 'playing', loading = state === 'loading';
+    if (analyser && playing) analyser.getByteFrequencyData(freq);
+    for (let i = 0; i < N; i++){
+      let target;
+      if (playing){
+        if (analyser){
+          // mirror the spectrum so the ring is symmetric
+          const k = i < N / 2 ? i : N - 1 - i;
+          target = Math.pow(freq[Math.floor(k / (N / 2) * 56) + 2] / 255, 1.25);
+        } else {
+          const a = Math.sin(t * 2.1 + i * .32 + seeds[i]) * .5 + .5;
+          const b = Math.sin(t * .9 - i * .11) * .5 + .5;
+          target = .12 + .6 * a * b + Math.random() * .08;
+        }
+      } else if (loading){
+        target = .08 + .1 * (Math.sin(t * 4 - i * .25) * .5 + .5);
+      } else target = .03;
+      levels[i] += (target - levels[i]) * (playing ? .35 : .1);
+    }
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    g.clearRect(0, 0, W, W);
+    g.translate(W / 2, W / 2);
+    const inner = W * .275, maxLen = W * .15;
+    g.lineCap = 'round'; g.lineWidth = Math.max(2, W * .0075);
+    for (let i = 0; i < N; i++){
+      const ang = i / N * Math.PI * 2 - Math.PI / 2;
+      const len = 4 + levels[i] * maxLen;
+      const c = Math.cos(ang), s = Math.sin(ang);
+      g.strokeStyle = `rgba(217,168,78,${.25 + levels[i] * .75})`;
+      g.beginPath(); g.moveTo(c * inner, s * inner); g.lineTo(c * (inner + len), s * (inner + len)); g.stroke();
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
